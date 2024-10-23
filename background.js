@@ -1,3 +1,5 @@
+import { createPrompt } from './prompt.js';
+
 chrome.commands.onCommand.addListener((command) => {
     if (command === "open-dialog") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -22,8 +24,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 },
                 body: JSON.stringify({
                     model: "gpt-3.5-turbo",
-                    messages: [{ role: "user", content: request.query }],
-                    max_tokens: 100,
+                    messages: createPrompt(request.query),
+                    max_tokens: 150,
                     stream: true
                 })
             })
@@ -38,31 +40,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 function readStream() {
                     reader.read().then(({ done, value }) => {
                         if (done) {
+                            chrome.tabs.sendMessage(sender.tab.id, { action: "streamComplete" });
                             return;
                         }
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
                         buffer = lines.pop();
 
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.slice(6);
-                                if (data.trim() === '[DONE]') {
-                                    chrome.tabs.sendMessage(sender.tab.id, { action: "streamComplete" });
-                                    return;
-                                }
-                                try {
-                                    const parsed = JSON.parse(data);
-                                    if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                                        chrome.tabs.sendMessage(sender.tab.id, { action: "insertText", text: parsed.choices[0].delta.content });
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing JSON:', e);
-                                }
-                            }
-                        }
-                        readStream();
+                        processLines(lines, sender.tab.id, 0);
                     });
+                }
+
+                function processLines(lines, tabId, index) {
+                    if (index >= lines.length) {
+                        readStream();
+                        return;
+                    }
+
+                    const line = lines[index];
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data.trim() === '[DONE]') {
+                            chrome.tabs.sendMessage(tabId, { action: "streamComplete" });
+                            return;
+                        }
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                                chrome.tabs.sendMessage(tabId, { action: "insertText", text: parsed.choices[0].delta.content });
+                            }
+                        } catch (e) {
+                            console.error('Error parsing JSON:', e);
+                        }
+                    }
+
+                    setTimeout(() => processLines(lines, tabId, index + 1), 50); // 50ms delay
                 }
 
                 readStream();
