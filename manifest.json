@@ -4,6 +4,7 @@
     "version": "1.0",
     "description": "AI-powered text insertion using Command+K",
     "permissions": [
+        "storage",
         "activeTab",
         "scripting"
     ],
@@ -25,5 +26,6 @@
             "js": ["content.js"],
             "css": ["styles.css"]
         }
-    ]
+    ],
+    "options_page": "options.html"
 }
