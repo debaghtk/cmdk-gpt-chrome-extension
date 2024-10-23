@@ -1,0 +1,21 @@
+#ai-assistant-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+}
+
+#ai-query {
+    width: 300px;
+    padding: 5px;
+    margin-right: 10px;
+}
+
+#ai-submit {
+    padding: 5px 10px;
+}

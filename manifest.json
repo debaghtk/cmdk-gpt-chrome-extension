@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "AI Assistant Extension",
+    "version": "1.0",
+    "description": "AI-powered text insertion using Command+K",
+    "permissions": [
+        "activeTab",
+        "scripting"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "commands": {
+        "open-dialog": {
+            "suggested_key": {
+                "default": "Ctrl+K",
+                "mac": "Command+K"
+            },
+            "description": "Open AI Assistant dialog"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "css": ["styles.css"]
+        }
+    ]
+}
