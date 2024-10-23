@@ -1,4 +1,5 @@
 let dialog = null;
+let streamBuffer = '';
 
 function createDialog() {
     dialog = document.createElement('div');
@@ -65,27 +66,23 @@ function showError(message) {
 }
 
 function insertText(text) {
-    // Try to find the active element or any focused input
+    streamBuffer += text;
+    
     let targetElement = document.activeElement;
 
-    // If no element is actively focused, try to find a visible input field
     if (targetElement === document.body || targetElement === document.documentElement) {
         targetElement = document.querySelector('input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), [contenteditable="true"]');
     }
 
     if (targetElement) {
         if (targetElement.isContentEditable) {
-            // For contenteditable elements
             targetElement.focus();
             document.execCommand('insertText', false, text);
         } else if (targetElement.tagName === 'TEXTAREA' || (targetElement.tagName === 'INPUT' && targetElement.type === 'text')) {
-            // For textarea and text input elements
             const start = targetElement.selectionStart;
-            const end = targetElement.selectionEnd;
-            targetElement.value = targetElement.value.substring(0, start) + text + targetElement.value.substring(end);
+            targetElement.value = targetElement.value.substring(0, start) + text + targetElement.value.substring(start);
             targetElement.selectionStart = targetElement.selectionEnd = start + text.length;
         } else {
-            // For other types of inputs, try using execCommand
             targetElement.focus();
             document.execCommand('insertText', false, text);
         }
@@ -95,6 +92,11 @@ function insertText(text) {
     }
 }
 
+function streamComplete() {
+    console.log('Stream complete. Total text received:', streamBuffer);
+    streamBuffer = '';
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "openDialog") {
         openDialog();
@@ -102,6 +104,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         insertText(request.text);
     } else if (request.action === "showError") {
         showError(request.error);
+    } else if (request.action === "streamComplete") {
+        streamComplete();
     }
 });
 

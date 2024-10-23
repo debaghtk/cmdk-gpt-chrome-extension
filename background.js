@@ -23,29 +23,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 body: JSON.stringify({
                     model: "gpt-3.5-turbo",
                     messages: [{ role: "user", content: request.query }],
-                    max_tokens: 100
+                    max_tokens: 100,
+                    stream: true
                 })
             })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.text().then(text => {
-                            throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-                        // Send the result back to the content script
-                        chrome.tabs.sendMessage(sender.tab.id, { action: "insertText", text: data.choices[0].message.content });
-                    } else {
-                        throw new Error('Unexpected API response format');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    chrome.tabs.sendMessage(sender.tab.id, { action: "showError", error: error.message });
-                });
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const reader = response.body.getReader();
+                let decoder = new TextDecoder();
+                let buffer = '';
+
+                function readStream() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            return;
+                        }
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data.trim() === '[DONE]') {
+                                    chrome.tabs.sendMessage(sender.tab.id, { action: "streamComplete" });
+                                    return;
+                                }
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                                        chrome.tabs.sendMessage(sender.tab.id, { action: "insertText", text: parsed.choices[0].delta.content });
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing JSON:', e);
+                                }
+                            }
+                        }
+                        readStream();
+                    });
+                }
+
+                readStream();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                chrome.tabs.sendMessage(sender.tab.id, { action: "showError", error: error.message });
+            });
         });
     }
 });
