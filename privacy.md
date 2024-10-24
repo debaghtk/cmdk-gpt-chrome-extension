@@ -13,7 +13,7 @@ Our Extension does not collect, store, or process any of the following types of 
 - Personally identifiable information (e.g., name, address, email, age, identification numbers)
 - Health information
 - Financial and payment information
-- Authentication information (except as noted below regarding API keys)
+- Authentication information (except as noted below regarding OpenAI API key)
 - Personal communications
 - Location data
 - Web browsing history
